@@ -149,25 +149,27 @@ impl RayTracer {
 							let mut ray_origin = self.camera.position.clone();
 
 							for current_depth in 0..self.depth_max {
-								let traced = self.trace_ray(&scene_clone, &ray_origin, &ray_direction);
-								if let Some((reflection, M, N, color_ray, is_occluded)) = traced {
-									current_color = current_color + current_reflection * color_ray;
-									if is_occluded {
+								match self.trace_ray(&scene_clone, &ray_origin, &ray_direction) {
+									TraceRayResult::Infinity => {
 										break;
+									},
+									TraceRayResult::Occluded(color_ray) => {
+										current_color = current_color + current_reflection * color_ray;
+										break;
+									},
+									TraceRayResult::NotOccluded{ reflection, M, N, color_ray } => {
+										current_color = current_color + current_reflection * color_ray;
+										ray_origin = M + &N * 0.0001;
+										ray_direction = normalize(ray_direction.clone() - 2. * &ray_direction.dot(&N) * &N);
+										current_reflection *= reflection;
 									}
-									ray_origin = M + &N * 0.0001;
-									ray_direction = normalize(ray_direction.clone() - 2. * &ray_direction.dot(&N) * &N);
-									current_reflection *= reflection;
-								} else {
-									break;
 								}
 							}
 							let color = &current_color * 255.;
 							let pixel_color = Rgb([color[0] as u8, color[1] as u8, color[2] as u8]);
 							let y = (height - index_y) as u32 - 1;
 							let x = index_x as u32;
-							let mut img = img_thread.lock().unwrap();
-							img.put_pixel(x, y, pixel_color);
+							img_thread.lock().unwrap().put_pixel(x, y, pixel_color);
 						}
 					}
 				});
@@ -179,7 +181,7 @@ impl RayTracer {
 		}
 	}
 
-	fn trace_ray(&self, scene: &Arc<Scene>, ray_origin: &Array1<f32>, ray_direction: &Array1<f32>) -> Option<(f32, Array1<f32>, Array1<f32>, Array1<f32>, bool)> {
+	fn trace_ray(&self, scene: &Arc<Scene>, ray_origin: &Array1<f32>, ray_direction: &Array1<f32>) -> TraceRayResult {
 		let mut t = f32::INFINITY;
 		let mut obj_idx: usize = 0;
 		for (index, object) in scene.get_objects().iter().enumerate() {
@@ -190,7 +192,7 @@ impl RayTracer {
 			}
 		}
 		if t == f32::INFINITY {
-			return None; //ray doesnt hit anything
+			return TraceRayResult::Infinity; //ray doesnt hit anything
 		}
 		let object = scene.get_object_at_index(obj_idx);
 		let M = ray_origin + &(ray_direction * t);
@@ -212,7 +214,7 @@ impl RayTracer {
 		let color_ray_ambient = self.ambient * color_obj;
 
 		if !l.is_empty() && min(&l) < f32::INFINITY {
-			return Some((object.get_reflection(), M, N, color_ray_ambient, true)); //is occluded
+			return TraceRayResult::Occluded(color_ray_ambient); //is occluded
 		}
 
 		let to_O = normalize(&self.camera.position - &M);
@@ -224,6 +226,17 @@ impl RayTracer {
 					f32::max(N.dot(&normalize(to_L + to_O)), 0.),
 					self.specular_phong_exponent,
 				) * &self.light.color;
-		return Some((object.get_reflection(), M, N, color_ray, false));
+		return TraceRayResult::NotOccluded{ reflection: object.get_reflection(), M, N, color_ray };
 	}
+}
+
+enum TraceRayResult {
+	Occluded(Array1<f32>),
+	NotOccluded {
+		reflection: f32, 
+		M: Array1<f32>,
+		N: Array1<f32>,
+		color_ray: Array1<f32>,
+	},
+	Infinity,
 }
