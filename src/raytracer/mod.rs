@@ -150,10 +150,13 @@ impl RayTracer {
 
 							for current_depth in 0..self.depth_max {
 								let traced = self.trace_ray(&scene_clone, &ray_origin, &ray_direction);
-								if let Some((reflection, M, N, color_ray)) = traced {
+								if let Some((reflection, M, N, color_ray, is_occluded)) = traced {
+									current_color = current_color + current_reflection * color_ray;
+									if is_occluded {
+										break;
+									}
 									ray_origin = M + &N * 0.0001;
 									ray_direction = normalize(ray_direction.clone() - 2. * &ray_direction.dot(&N) * &N);
-									current_color = current_color + current_reflection * color_ray;
 									current_reflection *= reflection;
 								} else {
 									break;
@@ -176,7 +179,7 @@ impl RayTracer {
 		}
 	}
 
-	fn trace_ray(&self, scene: &Arc<Scene>, ray_origin: &Array1<f32>, ray_direction: &Array1<f32>) -> Option<(f32, Array1<f32>, Array1<f32>, Array1<f32>)> {
+	fn trace_ray(&self, scene: &Arc<Scene>, ray_origin: &Array1<f32>, ray_direction: &Array1<f32>) -> Option<(f32, Array1<f32>, Array1<f32>, Array1<f32>, bool)> {
 		let mut t = f32::INFINITY;
 		let mut obj_idx: usize = 0;
 		for (index, object) in scene.get_objects().iter().enumerate() {
@@ -205,19 +208,22 @@ impl RayTracer {
 			.map(|(index, object)| object.intersect(&s, &to_L))
 			.collect();
 
+		let color_obj = object.get_color(&M);
+		let color_ray_ambient = self.ambient * color_obj;
+
 		if !l.is_empty() && min(&l) < f32::INFINITY {
-				return None; //is occluded
+			return Some((object.get_reflection(), M, N, color_ray_ambient, true)); //is occluded
 		}
 
 		let to_O = normalize(&self.camera.position - &M);
 
-		let color_ray = self.ambient
-			+ object.get_diffuse_c() * f32::max(N.dot(&to_L), 0.) * object.get_color(&M)
+		let color_ray = color_ray_ambient
+			+ object.get_diffuse_c() * f32::max(N.dot(&to_L), 0.) * color_obj * &self.light.color
 			+ object.get_specular_c()
 				* f32::powi(
 					f32::max(N.dot(&normalize(to_L + to_O)), 0.),
 					self.specular_phong_exponent,
 				) * &self.light.color;
-		return Some((object.get_reflection(), M, N, color_ray));
+		return Some((object.get_reflection(), M, N, color_ray, false));
 	}
 }
