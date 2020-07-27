@@ -2,26 +2,29 @@ extern crate ndarray;
 use ndarray::*;
 use super::helper::*;
 use super::Vector::Vector3D;
+use std::sync::Arc;
+
+pub type SolidObjectArc = Arc<dyn SolidObject + Sync + Send>;
 
 pub struct Scene {
-	objects: Vec<Box<dyn SolidObject>>,
+	objects: Vec<SolidObjectArc>,
 }
 
 impl Scene {
 
-	pub fn new() -> Box<Self> {
-		Box::new(Self { objects: Vec::new() })
+	pub fn new() -> Arc<Self> {
+		Arc::new(Self { objects: Vec::new() })
 	}
 
-	pub fn add_object(&mut self, object: Box<dyn SolidObject>) {
-		self.objects.push(object)
+	pub fn add_object(&mut self, object: SolidObjectArc) {
+		self.objects.push(object);
 	}
 
-	pub fn get_objects(&self) -> &Vec<Box<dyn SolidObject>> {
+	pub fn get_objects(&self) -> &Vec<SolidObjectArc> {
 		&self.objects
 	}
 
-	pub fn get_object_at_index(&self, index: usize) -> &Box<dyn SolidObject> {
+	pub fn get_object_at_index(&self, index: usize) -> &SolidObjectArc {
 		&self.objects[index]
 	}
 }
@@ -45,8 +48,8 @@ pub trait SolidObject {
 }
 
 impl Sphere {
-	pub fn new(position: Vector3D, radius: f32, color: Array1<f32>, reflection: f32, diffuse_c: f32, specular_c: f32) -> Box<Self> {
-		Box::new(Self { 	
+	pub fn new(position: Vector3D, radius: f32, color: Array1<f32>, reflection: f32, diffuse_c: f32, specular_c: f32) -> Arc<Self> {
+		Arc::new(Self { 	
 			position: position.to_ndarray(), 
 			radius, 
 			color, 
@@ -118,8 +121,8 @@ pub struct Checkerboard {
 }
 
 impl Checkerboard {
-	pub fn new(postion: Vector3D, normal: Vector3D, reflection: f32, diffuse_c: f32, specular_c: f32, colors: (Array1::<f32>, Array1::<f32>)) -> Box<Self> {
-		Box::new(Checkerboard { 	
+	pub fn new(postion: Vector3D, normal: Vector3D, reflection: f32, diffuse_c: f32, specular_c: f32, colors: (Array1::<f32>, Array1::<f32>)) -> Arc<Self> {
+		Arc::new(Checkerboard { 	
 			postion: postion.to_ndarray(),
 			normal: normal.to_ndarray(),
 			reflection,

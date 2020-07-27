@@ -8,7 +8,7 @@ pub fn clear_screen() {
 }
 
 #[inline]
-pub fn get_ratio(width: u32, height: u32) -> f32 {
+pub fn get_ratio(width: usize, height: usize) -> f32 {
 	width as f32 / height as f32
 }
 
@@ -25,5 +25,5 @@ pub fn rgb(red: u8, green: u8, blue: u8) -> Array1::<f32> {
 
 #[inline]
 pub fn min(vec: &Vec<f32>) -> f32 {
-	vec.iter().cloned().fold(0./0., f32::min)
+	vec.iter().cloned().fold(f32::NAN, f32::min)
 }
