@@ -1,17 +1,21 @@
 extern crate ndarray;
 use ndarray::*;
+
 extern crate image;
 use image::{ImageBuffer, Rgb};
+
 extern crate itertools;
 use itertools::Itertools;
+
 extern crate crossbeam;
+
 use std::default::Default;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 use super::helper::*;
 use super::objects::{Scene};
-use super::Vector::Vector3D;
+use super::vector::Vector3D;
 
 struct ScreenCoordinates {
 	x0: f32,
@@ -21,7 +25,7 @@ struct ScreenCoordinates {
 }
 
 impl ScreenCoordinates {
-	fn fromRatio(ratio: f32) -> Self {
+	fn from_ratio(ratio: f32) -> Self {
 		Self {
 			x0: -1.,
 			y0: -1. / ratio + 0.25,
@@ -33,14 +37,14 @@ impl ScreenCoordinates {
 
 pub struct Camera {
 	position: Array1<f32>,
-	direction: Array1<f32>,
+	pointing_to: Array1<f32>,
 }
 
 impl Camera {
 	pub fn new(position: Vector3D, direction: Vector3D) -> Self {
 		Self {
 			position: position.to_ndarray(),
-			direction: direction.to_ndarray(),
+			pointing_to: direction.to_ndarray(),
 		}
 	}
 }
@@ -49,7 +53,7 @@ impl Default for Camera {
 	fn default() -> Self {
 		Self {
 			position: array![0., 0.35, -1.],
-			direction: array![0., 0., 0.],
+			pointing_to: array![0., 0., 0.],
 		}
 	}
 }
@@ -119,7 +123,7 @@ impl RayTracer {
 		let img_scope = img.clone();
 		let now = SystemTime::now();
 		let scope_result = crossbeam::scope(move |scope| {
-			let screen_coordinates = ScreenCoordinates::fromRatio(get_ratio(width, height));
+			let screen_coordinates = ScreenCoordinates::from_ratio(get_ratio(width, height));
 			let y_coordinates = Array::linspace(screen_coordinates.y0, screen_coordinates.y1, height);
 			let x_coordinates = Array::linspace(screen_coordinates.x0, screen_coordinates.x1, width);
 			let x_coordinates_chunks = x_coordinates.iter().cloned().enumerate().chunks((width as f64 / threads as f64).ceil() as usize);
@@ -132,7 +136,7 @@ impl RayTracer {
 
 				let handle = scope.spawn(move |_| {
 					let mut current_color: Array1<f32> = array![0., 0., 0.];
-					let mut camera_pointing_to: Array1<f32> = self.camera.direction.clone();
+					let mut camera_pointing_to: Array1<f32> = self.camera.pointing_to.clone();
 					for (index_x, x) in x_coordinates_chunk_clone {
 						for (index_y, y) in y_coordinates_clone.iter().enumerate() {
 							for index in 0..3 {

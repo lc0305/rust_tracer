@@ -1,7 +1,7 @@
 mod helper;
 use helper::*;
-mod Vector;
-use Vector::Vector3D;
+mod vector;
+use vector::Vector3D;
 mod objects;
 use objects::*;
 mod raytracer;

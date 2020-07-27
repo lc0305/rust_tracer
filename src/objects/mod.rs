@@ -1,7 +1,7 @@
 extern crate ndarray;
 use ndarray::*;
 use super::helper::*;
-use super::Vector::Vector3D;
+use super::vector::Vector3D;
 use std::sync::Arc;
 
 pub type SolidObjectArc = Arc<dyn SolidObject + Sync + Send>;
@@ -137,9 +137,7 @@ impl Checkerboard {
 impl SolidObject for Checkerboard {
 
 	fn get_color(&self, intersection: &Array1<f32>) -> &Array1<f32> {
-		let intersec_x = (intersection[0] * 2.) as i32 as u32;
-		let intersec_z = (intersection[2] * 2.) as i32 as u32;
-		if ((intersec_x + intersec_z) % 2) == 1 {
+		if ((intersection[0] * 2.) as i32 as u32 % 2) == ((intersection[2] * 2.) as i32 as u32 % 2) {
 			&self.white
 		} else {
 			&self.black
